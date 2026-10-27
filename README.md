@@ -1,5 +1,7 @@
 # Риск-сводка кредитного портфеля
 
+**In English.** Test assignment for arqa (BI developer, DWH and dashboards): a risk summary of a synthetic loan portfolio as of 01.09.2026 and 01.10.2026. PostgreSQL `raw` → `reporting` views, a YAML semantic layer and a Vega-Lite dashboard ([live](https://mrovchinnikov95.github.io/arqa-bi-test/dashboard/)). As of 01.10.2026 the portfolio is ₸484.7 bn, NPL is 10.01% (−1.84 pp vs 01.09) and provisions are ₸31.2 bn. The NPL drop rests on 53 loans whose 90+ days past due went to zero within a month, and these "cures" need to be confirmed by payments. A ₸7.8 bn loan of G0004, the largest borrower group, is now more than 30 days past due. Restructured loans, not arrears, make up more than half of NPL (55%). SQL checks stop the build, and every output is recomputed by an independent Python script straight from the CSV files. Built with Claude Code; the AI's mistakes and their fixes are in [docs/ai-notes.md](docs/ai-notes.md). The rest of this README is in Russian.
+
 Тестовое задание arqa «BI-разработчик (DWH и дашборды)»: витрины в PostgreSQL, семантическая модель в YAML и дашборд на Vega-Lite по синтетическому портфелю на 01.09.2026 и 01.10.2026. Сделано с Claude Code, правила работы — в [CLAUDE.md](CLAUDE.md), ошибки ИИ и что с ними сделано — в [docs/ai-notes.md](docs/ai-notes.md).
 
 <!-- checked:start -->
