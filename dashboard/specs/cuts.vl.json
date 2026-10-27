@@ -1,0 +1,546 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Разрезы по отрасли и программе: портфель на текущий срез и выбранная метрика риска на двух срезах. Источник: reporting.v_risk_by_dimension.",
+  "params": [
+    {
+      "name": "metric",
+      "value": "par30_share",
+      "bind": {
+        "input": "radio",
+        "options": [
+          "par30_share",
+          "par90_share",
+          "npl_share"
+        ],
+        "labels": [
+          "PAR30",
+          "PAR90",
+          "NPL"
+        ],
+        "name": "Метрика риска справа: "
+      }
+    }
+  ],
+  "data": {
+    "url": "data/v_risk_by_dimension.json"
+  },
+  "transform": [
+    {
+      "calculate": "+toDate(datum.report_date)",
+      "as": "t"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "t",
+          "as": "t_max"
+        }
+      ]
+    },
+    {
+      "calculate": "slice(datum.report_date, 8, 10) + '.' + slice(datum.report_date, 5, 7) + '.' + slice(datum.report_date, 0, 4)",
+      "as": "date_label"
+    },
+    {
+      "calculate": "datum.t == datum.t_max ? datum.portfolio_kzt : 0",
+      "as": "curr_kzt"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "sum",
+          "field": "curr_kzt",
+          "as": "sort_kzt"
+        }
+      ],
+      "groupby": [
+        "dimension",
+        "dimension_value"
+      ]
+    },
+    {
+      "calculate": "metric == 'npl_share' ? datum.npl_share : metric == 'par30_share' ? datum.par30_share : datum.par90_share",
+      "as": "risk_share"
+    },
+    {
+      "calculate": "metric == 'npl_share' ? datum.npl_chg_pp : metric == 'par30_share' ? datum.par30_chg_pp : datum.par90_chg_pp",
+      "as": "risk_chg_pp"
+    },
+    {
+      "calculate": "metric == 'npl_share' ? 'NPL' : metric == 'par30_share' ? 'PAR30' : 'PAR90'",
+      "as": "metric_label"
+    },
+    {
+      "calculate": "datum.portfolio_kzt / 1e9",
+      "as": "portfolio_bn"
+    },
+    {
+      "calculate": "format(datum.risk_share, '.1%') + (datum.risk_chg_pp == null ? '' : '  ' + (datum.risk_chg_pp > 0 ? '+' : '') + format(datum.risk_chg_pp, '.1f') + ' п.п.')",
+      "as": "risk_label"
+    }
+  ],
+  "vconcat": [
+    {
+      "title": {
+        "text": "По отраслям",
+        "subtitle": "Слева — портфель на текущий срез, млрд ₸ и доля; справа — метрика риска внутри отрасли на двух срезах"
+      },
+      "transform": [
+        {
+          "filter": "datum.dimension == 'sector'"
+        }
+      ],
+      "hconcat": [
+        {
+          "width": 300,
+          "height": {
+            "step": 30
+          },
+          "transform": [
+            {
+              "filter": "datum.t == datum.t_max"
+            }
+          ],
+          "layer": [
+            {
+              "mark": {
+                "type": "bar",
+                "cornerRadiusEnd": 4,
+                "height": 16,
+                "color": "#2a78d6"
+              },
+              "encoding": {
+                "y": {
+                  "field": "dimension_value",
+                  "type": "nominal",
+                  "sort": {
+                    "field": "sort_kzt",
+                    "op": "max",
+                    "order": "descending"
+                  },
+                  "title": null
+                },
+                "x": {
+                  "field": "portfolio_bn",
+                  "type": "quantitative",
+                  "title": null,
+                  "axis": {
+                    "format": ",.0f",
+                    "grid": true,
+                    "domain": false,
+                    "tickCount": 6
+                  }
+                },
+                "tooltip": [
+                  {
+                    "field": "dimension_value",
+                    "title": "Отрасль"
+                  },
+                  {
+                    "field": "portfolio_bn",
+                    "title": "Портфель, млрд ₸",
+                    "format": ",.1f"
+                  },
+                  {
+                    "field": "share_of_portfolio",
+                    "title": "Доля портфеля",
+                    "format": ".1%"
+                  },
+                  {
+                    "field": "loan_count",
+                    "title": "Кредитов"
+                  }
+                ]
+              }
+            },
+            {
+              "mark": {
+                "type": "text",
+                "align": "left",
+                "dx": 6,
+                "fontSize": 11,
+                "color": "#52514e"
+              },
+              "encoding": {
+                "y": {
+                  "field": "dimension_value",
+                  "type": "nominal",
+                  "sort": {
+                    "field": "sort_kzt",
+                    "op": "max",
+                    "order": "descending"
+                  }
+                },
+                "x": {
+                  "field": "portfolio_bn",
+                  "type": "quantitative"
+                },
+                "text": {
+                  "field": "share_of_portfolio",
+                  "format": ".1%"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "width": 320,
+          "height": {
+            "step": 30
+          },
+          "encoding": {
+            "y": {
+              "field": "dimension_value",
+              "type": "nominal",
+              "sort": {
+                "field": "sort_kzt",
+                "op": "max",
+                "order": "descending"
+              },
+              "title": null,
+              "axis": {
+                "labels": false
+              }
+            }
+          },
+          "layer": [
+            {
+              "mark": {
+                "type": "line",
+                "color": "#c3c2b7",
+                "strokeWidth": 2
+              },
+              "encoding": {
+                "x": {
+                  "field": "risk_share",
+                  "type": "quantitative"
+                },
+                "detail": {
+                  "field": "dimension_value"
+                }
+              }
+            },
+            {
+              "mark": {
+                "type": "point",
+                "filled": true,
+                "size": 110,
+                "opacity": 1,
+                "stroke": "#fcfcfb",
+                "strokeWidth": 2
+              },
+              "encoding": {
+                "x": {
+                  "field": "risk_share",
+                  "type": "quantitative",
+                  "title": null,
+                  "scale": {
+                    "zero": true,
+                    "nice": true
+                  },
+                  "axis": {
+                    "format": ".0%",
+                    "grid": true,
+                    "domain": false,
+                    "tickCount": 5
+                  }
+                },
+                "color": {
+                  "field": "date_label",
+                  "type": "ordinal",
+                  "title": "Срез",
+                  "scale": {
+                    "range": [
+                      "#86b6ef",
+                      "#1c5cab"
+                    ]
+                  }
+                },
+                "tooltip": [
+                  {
+                    "field": "dimension_value",
+                    "title": "Отрасль"
+                  },
+                  {
+                    "field": "date_label",
+                    "title": "Срез"
+                  },
+                  {
+                    "field": "metric_label",
+                    "title": "Метрика"
+                  },
+                  {
+                    "field": "risk_share",
+                    "title": "Доля",
+                    "format": ".2%"
+                  },
+                  {
+                    "field": "risk_chg_pp",
+                    "title": "Изменение, п.п.",
+                    "format": "+.2f"
+                  }
+                ]
+              }
+            },
+            {
+              "transform": [
+                {
+                  "filter": "datum.t == datum.t_max"
+                }
+              ],
+              "mark": {
+                "type": "text",
+                "align": "left",
+                "dx": 10,
+                "fontSize": 11,
+                "color": "#0b0b0b"
+              },
+              "encoding": {
+                "x": {
+                  "value": 330
+                },
+                "text": {
+                  "field": "risk_label"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": {
+        "text": "По программам",
+        "subtitle": "Слева — портфель на текущий срез, млрд ₸ и доля; справа — метрика риска внутри программы на двух срезах"
+      },
+      "transform": [
+        {
+          "filter": "datum.dimension == 'program'"
+        }
+      ],
+      "hconcat": [
+        {
+          "width": 300,
+          "height": {
+            "step": 30
+          },
+          "transform": [
+            {
+              "filter": "datum.t == datum.t_max"
+            }
+          ],
+          "layer": [
+            {
+              "mark": {
+                "type": "bar",
+                "cornerRadiusEnd": 4,
+                "height": 16,
+                "color": "#2a78d6"
+              },
+              "encoding": {
+                "y": {
+                  "field": "dimension_value",
+                  "type": "nominal",
+                  "sort": {
+                    "field": "sort_kzt",
+                    "op": "max",
+                    "order": "descending"
+                  },
+                  "title": null
+                },
+                "x": {
+                  "field": "portfolio_bn",
+                  "type": "quantitative",
+                  "title": null,
+                  "axis": {
+                    "format": ",.0f",
+                    "grid": true,
+                    "domain": false,
+                    "tickCount": 6
+                  }
+                },
+                "tooltip": [
+                  {
+                    "field": "dimension_value",
+                    "title": "Программа"
+                  },
+                  {
+                    "field": "portfolio_bn",
+                    "title": "Портфель, млрд ₸",
+                    "format": ",.1f"
+                  },
+                  {
+                    "field": "share_of_portfolio",
+                    "title": "Доля портфеля",
+                    "format": ".1%"
+                  },
+                  {
+                    "field": "loan_count",
+                    "title": "Кредитов"
+                  }
+                ]
+              }
+            },
+            {
+              "mark": {
+                "type": "text",
+                "align": "left",
+                "dx": 6,
+                "fontSize": 11,
+                "color": "#52514e"
+              },
+              "encoding": {
+                "y": {
+                  "field": "dimension_value",
+                  "type": "nominal",
+                  "sort": {
+                    "field": "sort_kzt",
+                    "op": "max",
+                    "order": "descending"
+                  }
+                },
+                "x": {
+                  "field": "portfolio_bn",
+                  "type": "quantitative"
+                },
+                "text": {
+                  "field": "share_of_portfolio",
+                  "format": ".1%"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "width": 320,
+          "height": {
+            "step": 30
+          },
+          "encoding": {
+            "y": {
+              "field": "dimension_value",
+              "type": "nominal",
+              "sort": {
+                "field": "sort_kzt",
+                "op": "max",
+                "order": "descending"
+              },
+              "title": null,
+              "axis": {
+                "labels": false
+              }
+            }
+          },
+          "layer": [
+            {
+              "mark": {
+                "type": "line",
+                "color": "#c3c2b7",
+                "strokeWidth": 2
+              },
+              "encoding": {
+                "x": {
+                  "field": "risk_share",
+                  "type": "quantitative"
+                },
+                "detail": {
+                  "field": "dimension_value"
+                }
+              }
+            },
+            {
+              "mark": {
+                "type": "point",
+                "filled": true,
+                "size": 110,
+                "opacity": 1,
+                "stroke": "#fcfcfb",
+                "strokeWidth": 2
+              },
+              "encoding": {
+                "x": {
+                  "field": "risk_share",
+                  "type": "quantitative",
+                  "title": null,
+                  "scale": {
+                    "zero": true,
+                    "nice": true
+                  },
+                  "axis": {
+                    "format": ".0%",
+                    "grid": true,
+                    "domain": false,
+                    "tickCount": 5
+                  }
+                },
+                "color": {
+                  "field": "date_label",
+                  "type": "ordinal",
+                  "title": "Срез",
+                  "scale": {
+                    "range": [
+                      "#86b6ef",
+                      "#1c5cab"
+                    ]
+                  }
+                },
+                "tooltip": [
+                  {
+                    "field": "dimension_value",
+                    "title": "Программа"
+                  },
+                  {
+                    "field": "date_label",
+                    "title": "Срез"
+                  },
+                  {
+                    "field": "metric_label",
+                    "title": "Метрика"
+                  },
+                  {
+                    "field": "risk_share",
+                    "title": "Доля",
+                    "format": ".2%"
+                  },
+                  {
+                    "field": "risk_chg_pp",
+                    "title": "Изменение, п.п.",
+                    "format": "+.2f"
+                  }
+                ]
+              }
+            },
+            {
+              "transform": [
+                {
+                  "filter": "datum.t == datum.t_max"
+                }
+              ],
+              "mark": {
+                "type": "text",
+                "align": "left",
+                "dx": 10,
+                "fontSize": 11,
+                "color": "#0b0b0b"
+              },
+              "encoding": {
+                "x": {
+                  "value": 330
+                },
+                "text": {
+                  "field": "risk_label"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "resolve": {
+    "legend": {
+      "color": "shared"
+    }
+  }
+}

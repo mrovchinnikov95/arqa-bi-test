@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Риск-сводка портфеля</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --line: #e1e0d9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 28px 16px 48px; }
+  h1 { font-size: 22px; font-weight: 650; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--ink-2); margin: 0 0 20px; }
+  .kpi { overflow-x: auto; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow-x: auto; min-width: 0; }
+  .full { grid-column: 1 / -1; }
+  @media (max-width: 1040px) { .grid { grid-template-columns: 1fr; } }
+  .note { color: var(--ink-2); font-size: 12px; margin: 0 0 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-2); font-weight: 500; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .sev { white-space: nowrap; }
+  .error { color: #b00020; }
+  footer { color: var(--ink-2); font-size: 12px; margin-top: 20px; }
+  footer p { margin: 4px 0; }
+  /* переключатель метрики — над графиком, а не под ним; vega-embed вешает класс на сам контейнер */
+  #cuts.vega-embed { display: flex; flex-direction: column; }
+  #cuts .vega-bindings { order: -1; margin-bottom: 8px; }
+  .vega-bind { font-size: 12px; color: var(--ink-2); margin-bottom: 6px; }
+  .vega-bind label { margin-right: 10px; }
+  .vega-bind-name { font-weight: 500; margin-right: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Риск-сводка кредитного портфеля</h1>
+    <p class="sub" id="period">Загружаю данные…</p>
+  </header>
+
+  <section class="kpi" id="kpi" aria-label="Ключевые метрики"></section>
+
+  <div class="grid">
+    <section class="card" id="dynamics" aria-label="Риск-метрики на двух срезах"></section>
+    <section class="card" id="bridge" aria-label="Мост портфеля"></section>
+    <section class="card full" id="cuts" aria-label="Разрезы по отраслям и программам"></section>
+    <section class="card" id="groups" aria-label="Концентрация по группам"></section>
+    <section class="card" id="structure" aria-label="Структура портфеля по классам риска"></section>
+    <section class="card full" id="migration" aria-label="Миграция между классами риска"></section>
+    <section class="card full" aria-label="Качество данных">
+      <h2>Качество данных</h2>
+      <p class="note">Что нашлось в выгрузке и как обработано. Ошибки блокируют сборку, предупреждения учтены и описаны в README.</p>
+      <div id="dq"></div>
+    </section>
+  </div>
+
+  <footer>
+    <p><b>Портфель</b> — остаток основного долга в тенге по курсу на дату среза, без списанных кредитов.
+       <b>PAR30 / PAR90</b> — доля портфеля с просрочкой больше 30 / 90 дней.
+       <b>NPL</b> — просрочка больше 90 дней или реструктуризация.
+       <b>Провизии</b> — 1% при просрочке 0–30 дней, 10% при 31–90, 50% для NPL.
+       <b>Топ-10 групп</b> — доля десяти крупнейших групп связанных заёмщиков.</p>
+    <p>Данные: <code>reporting.v_*</code> → <code>dashboard/data/*.json</code> (<code>scripts/export.sh</code>). Спеки: <code>dashboard/specs/*.vl.json</code>.</p>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/vega@6.4.0/build/vega.min.js"
+        integrity="sha384-VKdcJr3ZaBIJMbVcopTAI/JEuUkSY6qnwVu9iLuw0DnQ9gQ1JjsfZJhXFQAgNi43" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@6.5.0/build/vega-lite.min.js"
+        integrity="sha384-pV2l7nzmyxZh02knvUH7N8zvtyCYsYiGt+SsE/emG/dFiBI6G0YJZFZ2FzEX72P3" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@7.3.0/build/vega-embed.min.js"
+        integrity="sha384-Muy1QRxYFeNrA1zShc1KtN4OfipkR/61gt+HWqN57c1Zxu3Oe16TsilsruVVjfKL" crossorigin="anonymous"></script>
+<script>
+  // Страница только рисует: числа и подписи приходят из выгрузок вьюх reporting.
+  const CHARTS = {
+    kpi: "specs/kpi.vl.json",
+    dynamics: "specs/dynamics.vl.json",
+    bridge: "specs/bridge.vl.json",
+    cuts: "specs/cuts.vl.json",
+    groups: "specs/groups.vl.json",
+    structure: "specs/structure.vl.json",
+    migration: "specs/migration.vl.json",
+  };
+  const RU_LOCALE = { decimal: ",", thousands: " ", grouping: [3], currency: ["", " ₸"] };
+  const SEVERITY = { error: "ошибка — блокирует сборку", warning: "предупреждение", info: "информация" };
+
+  const ddmmyyyy = (iso) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+  const fmtInt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+  const fmtBn = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  async function getJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function renderDataQuality(rows) {
+    const dates = [...new Set(rows.map((r) => r.report_date))].sort();
+    const checks = new Map();
+    for (const r of rows) {
+      if (!checks.has(r.check_code)) checks.set(r.check_code, { ...r, byDate: {} });
+      checks.get(r.check_code).byDate[r.report_date] = r;
+    }
+    const cell = (r) => {
+      if (!r || r.row_count === null) return '<td class="num">—</td><td class="num">—</td>';
+      const amount = r.amount_kzt === null ? "—" : fmtBn.format(r.amount_kzt / 1e9);
+      return `<td class="num">${fmtInt.format(r.row_count)}</td><td class="num">${amount}</td>`;
+    };
+    const head = dates.map((d) => `<th class="num">${ddmmyyyy(d)}: строк</th><th class="num">млрд ₸</th>`).join("");
+    const body = [...checks.values()]
+      .sort((a, b) => a.check_order - b.check_order)
+      .map((c) => `<tr><td>${c.check_title}</td><td class="sev">${SEVERITY[c.severity] ?? c.severity}</td>${dates.map((d) => cell(c.byDate[d])).join("")}<td>${c.handling}</td></tr>`)
+      .join("");
+    document.getElementById("dq").innerHTML =
+      `<table><thead><tr><th>Проверка</th><th>Тип</th>${head}<th>Что сделано</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  async function main() {
+    const theme = await getJson("specs/theme.json");
+    const metrics = await getJson("data/v_risk_metrics.json");
+    const dates = metrics.map((m) => ddmmyyyy(m.report_date));
+    document.getElementById("period").textContent =
+      `Срезы ${dates.join(" и ")} · суммы в тенге по курсу на дату среза · списанные кредиты исключены · изменения — к предыдущему срезу`;
+
+    const results = await Promise.allSettled(
+      Object.entries(CHARTS).map(([id, url]) =>
+        vegaEmbed(`#${id}`, url, { actions: false, renderer: "svg", config: theme, formatLocale: RU_LOCALE })
+      )
+    );
+    const failed = [];
+    results.forEach((r, i) => {
+      const id = Object.keys(CHARTS)[i];
+      if (r.status === "rejected") {
+        failed.push(id);
+        console.error(`График ${id} не отрисован:`, r.reason);
+        document.getElementById(id).innerHTML = `<p class="error">График не отрисован: ${r.reason}</p>`;
+      }
+    });
+
+    renderDataQuality(await getJson("data/v_data_quality.json"));
+    // Сигнал для скрипта скриншота: всё нарисовано или что-то упало.
+    document.body.dataset.rendered = failed.length ? `error:${failed.join(",")}` : "ok";
+  }
+
+  main().catch((err) => {
+    console.error(err);
+    document.body.dataset.rendered = "error";
+    document.getElementById("period").innerHTML = `<span class="error">Ошибка загрузки: ${err.message}</span>`;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Мост портфеля между срезами: погашения, переоценка, списания, возвраты из списанных. Источник: reporting.v_portfolio_bridge.",
+  "title": {
+    "text": "Из чего сложилось изменение портфеля",
+    "subtitle": "Шаги от прошлого среза к текущему, млрд ₸; нулевые шаги скрыты"
+  },
+  "data": {
+    "url": "data/v_portfolio_bridge.json"
+  },
+  "transform": [
+    {
+      "calculate": "+toDate(datum.report_date)",
+      "as": "t"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "t",
+          "as": "t_max"
+        }
+      ]
+    },
+    {
+      "filter": "datum.t == datum.t_max && datum.step_kind == 'delta' && datum.amount_kzt != 0"
+    },
+    {
+      "calculate": "datum.amount_kzt / 1e9",
+      "as": "bn"
+    },
+    {
+      "calculate": "datum.bn < 0 ? 'Уменьшение' : 'Рост'",
+      "as": "direction"
+    },
+    {
+      "calculate": "(datum.bn > 0 ? '+' : '') + format(datum.bn, ',.1f')",
+      "as": "label"
+    }
+  ],
+  "width": 380,
+  "height": {
+    "step": 40
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "cornerRadiusEnd": 4,
+        "height": 18
+      },
+      "encoding": {
+        "y": {
+          "field": "step_label",
+          "type": "nominal",
+          "sort": {
+            "field": "step_order",
+            "op": "min"
+          },
+          "title": null
+        },
+        "x": {
+          "field": "bn",
+          "type": "quantitative",
+          "title": null,
+          "axis": {
+            "format": ",.0f",
+            "grid": true,
+            "domain": false,
+            "tickCount": 6
+          },
+          "scale": {
+            "padding": 44,
+            "nice": false
+          }
+        },
+        "color": {
+          "field": "direction",
+          "type": "nominal",
+          "title": null,
+          "scale": {
+            "domain": [
+              "Уменьшение",
+              "Рост"
+            ],
+            "range": [
+              "#e34948",
+              "#2a78d6"
+            ]
+          }
+        },
+        "tooltip": [
+          {
+            "field": "step_label",
+            "title": "Шаг"
+          },
+          {
+            "field": "bn",
+            "title": "млрд ₸",
+            "format": ",.3f"
+          },
+          {
+            "field": "amount_kzt",
+            "title": "₸",
+            "format": ",.2f"
+          }
+        ]
+      }
+    },
+    {
+      "transform": [
+        {
+          "filter": "datum.bn < 0"
+        }
+      ],
+      "mark": {
+        "type": "text",
+        "align": "right",
+        "dx": -6,
+        "fontSize": 11,
+        "color": "#0b0b0b"
+      },
+      "encoding": {
+        "y": {
+          "field": "step_label",
+          "type": "nominal",
+          "sort": {
+            "field": "step_order",
+            "op": "min"
+          }
+        },
+        "x": {
+          "field": "bn",
+          "type": "quantitative"
+        },
+        "text": {
+          "field": "label"
+        }
+      }
+    },
+    {
+      "transform": [
+        {
+          "filter": "datum.bn > 0"
+        }
+      ],
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "dx": 6,
+        "fontSize": 11,
+        "color": "#0b0b0b"
+      },
+      "encoding": {
+        "y": {
+          "field": "step_label",
+          "type": "nominal",
+          "sort": {
+            "field": "step_order",
+            "op": "min"
+          }
+        },
+        "x": {
+          "field": "bn",
+          "type": "quantitative"
+        },
+        "text": {
+          "field": "label"
+        }
+      }
+    }
+  ]
+}

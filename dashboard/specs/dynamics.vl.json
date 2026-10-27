@@ -1,0 +1,31 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Динамика долей риска между срезами: PAR30, PAR90, NPL, топ-10 групп. Источник: reporting.v_risk_metrics_long.",
+  "title": {"text": "Риск-метрики на двух срезах", "subtitle": "Доля портфеля; подпись — текущее значение и изменение"},
+  "data": {"url": "data/v_risk_metrics_long.json"},
+  "transform": [
+    {"filter": "datum.unit == 'share'"},
+    {"calculate": "slice(datum.report_date, 8, 10) + '.' + slice(datum.report_date, 5, 7) + '.' + slice(datum.report_date, 0, 4)", "as": "date_label"},
+    {"calculate": "datum.prev_value == null ? null : max(datum.value, datum.prev_value)", "as": "label_x"},
+    {"calculate": "datum.value_display + '  ' + datum.change_display", "as": "label"}
+  ],
+  "width": 380,
+  "height": {"step": 44},
+  "encoding": {
+    "y": {"field": "metric_label", "type": "nominal", "sort": {"field": "sort_order", "op": "min"}, "title": null}
+  },
+  "layer": [
+    {"mark": {"type": "line", "color": "#c3c2b7", "strokeWidth": 2},
+     "encoding": {"x": {"field": "value", "type": "quantitative"}, "detail": {"field": "metric_code"}}},
+    {"mark": {"type": "point", "filled": true, "size": 130, "opacity": 1, "stroke": "#fcfcfb", "strokeWidth": 2},
+     "encoding": {
+       "x": {"field": "value", "type": "quantitative", "title": null, "scale": {"zero": true, "nice": true},
+             "axis": {"format": ".0%", "grid": true, "tickCount": 5, "domain": false}},
+       "color": {"field": "date_label", "type": "ordinal", "title": "Срез", "scale": {"range": ["#86b6ef", "#1c5cab"]}},
+       "tooltip": [{"field": "metric_label", "title": "Метрика"}, {"field": "date_label", "title": "Срез"},
+                   {"field": "value", "title": "Доля", "format": ".2%"}, {"field": "change_display", "title": "Изменение к прошлому срезу"}]}},
+    {"transform": [{"filter": "datum.label_x != null"}],
+     "mark": {"type": "text", "align": "left", "dx": 12, "fontSize": 11, "color": "#0b0b0b"},
+     "encoding": {"x": {"field": "label_x", "type": "quantitative"}, "text": {"field": "label"}}}
+  ]
+}

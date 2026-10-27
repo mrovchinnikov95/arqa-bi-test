@@ -1,0 +1,182 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Концентрация: 10 крупнейших групп связанных заёмщиков на последний срез, с просрочкой больше 30 дней внутри группы. Источник: reporting.v_top_groups.",
+  "title": {
+    "text": "10 крупнейших групп связанных заёмщиков",
+    "subtitle": "Млрд ₸ на текущий срез; оранжевое — просрочка больше 30 дней"
+  },
+  "data": {
+    "url": "data/v_top_groups.json"
+  },
+  "transform": [
+    {
+      "calculate": "+toDate(datum.report_date)",
+      "as": "t"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "t",
+          "as": "t_max"
+        }
+      ]
+    },
+    {
+      "filter": "datum.t == datum.t_max"
+    },
+    {
+      "calculate": "datum.par30_amount_kzt / 1e9",
+      "as": "Просрочка больше 30 дней"
+    },
+    {
+      "calculate": "(datum.amount_kzt - datum.par30_amount_kzt) / 1e9",
+      "as": "Остальной портфель группы"
+    },
+    {
+      "calculate": "datum.amount_kzt / 1e9",
+      "as": "total_bn"
+    },
+    {
+      "fold": [
+        "Просрочка больше 30 дней",
+        "Остальной портфель группы"
+      ],
+      "as": [
+        "part",
+        "bn"
+      ]
+    },
+    {
+      "calculate": "datum.part == 'Просрочка больше 30 дней' ? 1 : 2",
+      "as": "part_order"
+    }
+  ],
+  "width": 380,
+  "height": {
+    "step": 26
+  },
+  "encoding": {
+    "y": {
+      "field": "group_id",
+      "type": "nominal",
+      "sort": {
+        "field": "group_rank",
+        "op": "min",
+        "order": "ascending"
+      },
+      "title": null
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "height": 16,
+        "stroke": "#fcfcfb",
+        "strokeWidth": 1
+      },
+      "encoding": {
+        "x": {
+          "field": "bn",
+          "type": "quantitative",
+          "stack": "zero",
+          "title": null,
+          "axis": {
+            "format": ",.0f",
+            "grid": true,
+            "domain": false
+          }
+        },
+        "color": {
+          "field": "part",
+          "type": "nominal",
+          "title": null,
+          "scale": {
+            "domain": [
+              "Просрочка больше 30 дней",
+              "Остальной портфель группы"
+            ],
+            "range": [
+              "#eb6834",
+              "#dcdbd5"
+            ]
+          }
+        },
+        "order": {
+          "field": "part_order"
+        },
+        "tooltip": [
+          {
+            "field": "group_id",
+            "title": "Группа"
+          },
+          {
+            "field": "group_rank",
+            "title": "Место"
+          },
+          {
+            "field": "total_bn",
+            "title": "Портфель группы, млрд ₸",
+            "format": ",.2f"
+          },
+          {
+            "field": "share_of_portfolio",
+            "title": "Доля портфеля",
+            "format": ".2%"
+          },
+          {
+            "field": "cumulative_share",
+            "title": "Накопленная доля",
+            "format": ".2%"
+          },
+          {
+            "field": "part",
+            "title": "Часть"
+          },
+          {
+            "field": "bn",
+            "title": "млрд ₸",
+            "format": ",.2f"
+          },
+          {
+            "field": "loan_count",
+            "title": "Кредитов"
+          },
+          {
+            "field": "borrower_count",
+            "title": "Заёмщиков"
+          },
+          {
+            "field": "max_days_past_due",
+            "title": "Макс. просрочка, дней"
+          }
+        ]
+      }
+    },
+    {
+      "transform": [
+        {
+          "filter": "datum.part_order == 1"
+        }
+      ],
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "dx": 6,
+        "fontSize": 11,
+        "color": "#52514e"
+      },
+      "encoding": {
+        "x": {
+          "field": "total_bn",
+          "type": "quantitative"
+        },
+        "text": {
+          "field": "share_of_portfolio",
+          "format": ".1%"
+        }
+      }
+    }
+  ]
+}

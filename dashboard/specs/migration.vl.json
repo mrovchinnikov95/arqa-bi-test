@@ -1,0 +1,152 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Миграция кредитов между классами риска от прошлого среза к текущему. Источник: reporting.v_dpd_migration.",
+  "title": {
+    "text": "Куда перешли кредиты за месяц",
+    "subtitle": "Строка — класс на прошлом срезе, столбец — на текущем; в ячейке число кредитов и остаток, млрд ₸"
+  },
+  "data": {
+    "url": "data/v_dpd_migration.json"
+  },
+  "transform": [
+    {
+      "calculate": "+toDate(datum.report_date)",
+      "as": "t"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "t",
+          "as": "t_max"
+        }
+      ]
+    },
+    {
+      "filter": "datum.t == datum.t_max"
+    },
+    {
+      "calculate": "datum.to_amount_kzt / 1e9",
+      "as": "to_bn"
+    },
+    {
+      "calculate": "datum.loan_count + ' · ' + format(datum.to_bn, ',.1f')",
+      "as": "cell_label"
+    }
+  ],
+  "width": {
+    "step": 112
+  },
+  "height": {
+    "step": 40
+  },
+  "encoding": {
+    "x": {
+      "field": "to_state",
+      "type": "nominal",
+      "sort": {
+        "field": "to_order",
+        "op": "min"
+      },
+      "title": "Текущий срез",
+      "axis": {
+        "orient": "bottom",
+        "labelAngle": 0,
+        "labelLimit": 110,
+        "labelFontSize": 11,
+        "domain": false,
+        "ticks": false,
+        "labelColor": "#0b0b0b",
+        "labelExpr": "indexof(datum.label, ' ') < 0 ? datum.label : [slice(datum.label, 0, indexof(datum.label, ' ')), slice(datum.label, indexof(datum.label, ' ') + 1)]",
+        "labelPadding": 6,
+        "labelFlush": false
+      }
+    },
+    "y": {
+      "field": "from_state",
+      "type": "nominal",
+      "sort": {
+        "field": "from_order",
+        "op": "min"
+      },
+      "title": "Прошлый срез",
+      "axis": {
+        "labelFontSize": 11,
+        "titleColor": "#52514e",
+        "titleFontSize": 11,
+        "titleFontWeight": 500
+      }
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "rect",
+        "cornerRadius": 4,
+        "stroke": "#fcfcfb",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "color": {
+          "field": "to_bn",
+          "type": "quantitative",
+          "title": "млрд ₸",
+          "scale": {
+            "type": "sqrt",
+            "range": [
+              "#cde2fb",
+              "#0d366b"
+            ]
+          },
+          "legend": {
+            "orient": "right",
+            "format": ",.0f",
+            "gradientLength": 120
+          }
+        },
+        "tooltip": [
+          {
+            "field": "from_state",
+            "title": "Было"
+          },
+          {
+            "field": "to_state",
+            "title": "Стало"
+          },
+          {
+            "field": "loan_count",
+            "title": "Кредитов"
+          },
+          {
+            "field": "from_amount_kzt",
+            "title": "Остаток на прошлом срезе, ₸",
+            "format": ",.0f"
+          },
+          {
+            "field": "to_amount_kzt",
+            "title": "Остаток на текущем срезе, ₸",
+            "format": ",.0f"
+          }
+        ]
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "fontSize": 10.5
+      },
+      "encoding": {
+        "text": {
+          "field": "cell_label"
+        },
+        "color": {
+          "condition": {
+            "test": "datum.to_bn > 80",
+            "value": "#ffffff"
+          },
+          "value": "#0b0b0b"
+        }
+      }
+    }
+  ]
+}

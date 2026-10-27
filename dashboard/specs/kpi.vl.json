@@ -1,0 +1,178 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "description": "Плитки: ключевые метрики на последний срез, изменение к предыдущему и значение на предыдущем. Источник: reporting.v_risk_metrics_long. Плитки раскладываются по sort_order в пикселях (scale: null).",
+  "data": {
+    "url": "data/v_risk_metrics_long.json"
+  },
+  "width": 1164,
+  "height": 106,
+  "transform": [
+    {
+      "calculate": "+toDate(datum.report_date)",
+      "as": "t"
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "max",
+          "field": "t",
+          "as": "t_max"
+        }
+      ]
+    },
+    {
+      "filter": "datum.t == datum.t_max && datum.metric_code != 'loans'"
+    },
+    {
+      "calculate": "(datum.sort_order - 1) * 196",
+      "as": "x0"
+    },
+    {
+      "calculate": "datum.x0 + 184",
+      "as": "x1"
+    },
+    {
+      "calculate": "datum.x0 + 14",
+      "as": "tx"
+    },
+    {
+      "calculate": "slice(datum.prev_report_date, 8, 10) + '.' + slice(datum.prev_report_date, 5, 7)",
+      "as": "prev_label"
+    },
+    {
+      "calculate": "datum.change_display",
+      "as": "change_text"
+    },
+    {
+      "calculate": "'на ' + datum.prev_label + ': ' + (datum.unit == 'share' ? format(datum.prev_value, '.2%') : format(datum.prev_value / 1e9, ',.1f') + ' млрд ₸')",
+      "as": "prev_text"
+    }
+  ],
+  "layer": [
+    {
+      "mark": {
+        "type": "rect",
+        "fill": "#ffffff",
+        "stroke": "#e1e0d9",
+        "strokeWidth": 1,
+        "cornerRadius": 8
+      },
+      "encoding": {
+        "x": {
+          "field": "x0",
+          "type": "quantitative",
+          "scale": null
+        },
+        "x2": {
+          "field": "x1"
+        },
+        "y": {
+          "value": 0
+        },
+        "y2": {
+          "value": 106
+        },
+        "tooltip": [
+          {
+            "field": "metric_label",
+            "title": "Метрика"
+          },
+          {
+            "field": "value_display",
+            "title": "Значение"
+          },
+          {
+            "field": "value_exact_display",
+            "title": "Точно"
+          },
+          {
+            "field": "change_display",
+            "title": "Изменение"
+          }
+        ]
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "top",
+        "y": 14,
+        "fontSize": 12,
+        "fontWeight": 500,
+        "color": "#52514e"
+      },
+      "encoding": {
+        "x": {
+          "field": "tx",
+          "type": "quantitative",
+          "scale": null
+        },
+        "text": {
+          "field": "metric_label"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "top",
+        "y": 34,
+        "fontSize": 22,
+        "fontWeight": 600,
+        "color": "#0b0b0b"
+      },
+      "encoding": {
+        "x": {
+          "field": "tx",
+          "type": "quantitative",
+          "scale": null
+        },
+        "text": {
+          "field": "value_display"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "top",
+        "y": 66,
+        "fontSize": 12,
+        "color": "#0b0b0b"
+      },
+      "encoding": {
+        "x": {
+          "field": "tx",
+          "type": "quantitative",
+          "scale": null
+        },
+        "text": {
+          "field": "change_text"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "baseline": "top",
+        "y": 85,
+        "fontSize": 11,
+        "color": "#898781"
+      },
+      "encoding": {
+        "x": {
+          "field": "tx",
+          "type": "quantitative",
+          "scale": null
+        },
+        "text": {
+          "field": "prev_text"
+        }
+      }
+    }
+  ]
+}
