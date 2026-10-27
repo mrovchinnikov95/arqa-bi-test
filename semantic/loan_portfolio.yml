@@ -1,0 +1,118 @@
+# Семантическая модель кредитного портфеля.
+# Источник: reporting.v_portfolio — кредит × дата среза, только несписанные кредиты.
+# Все меры аддитивны. Доли — отношение двух мер на одну дату среза:
+#   PAR30 = par30_amount / portfolio_amount
+#   PAR90 = par90_amount / portfolio_amount
+#   NPL   = npl_amount   / portfolio_amount
+#   концентрация — в модели risk_metrics (топ-10 групп считается до агрегации).
+# Портфель — остаток на дату, а не поток: суммировать меры только в пределах одной report_date.
+# format — строка d3-format, как в Vega-Lite.
+# Колонки и типы сверяет с витриной checks/validate_semantic.py.
+
+model: loan_portfolio
+source: reporting.v_portfolio
+
+dimensions:
+  - name: report_date
+    column: report_date
+    type: date
+    label: Дата среза
+  - name: sector
+    column: sector
+    type: string
+    label: Отрасль
+  - name: program
+    column: program
+    type: string
+    label: Программа
+  - name: currency
+    column: currency
+    type: string
+    label: Валюта кредита
+  - name: risk_class
+    column: risk_class
+    type: string
+    label: Класс риска
+  - name: dpd_bucket
+    column: dpd_bucket
+    type: string
+    label: Просрочка, дней
+  - name: is_restructured
+    column: is_restructured
+    type: boolean
+    label: Реструктуризирован
+  - name: is_npl
+    column: is_npl
+    type: boolean
+    label: NPL
+  - name: is_past_maturity
+    column: is_past_maturity
+    type: boolean
+    label: Срок погашения прошёл
+  - name: group_id
+    column: group_id
+    type: string
+    label: Группа связанных заёмщиков
+  - name: borrower_id
+    column: borrower_id
+    type: string
+    label: Заёмщик
+  - name: loan_id
+    column: loan_id
+    type: string
+    label: Кредит
+  - name: issue_date
+    column: issue_date
+    type: date
+    label: Дата выдачи
+  - name: maturity_date
+    column: maturity_date
+    type: date
+    label: Дата погашения
+
+measures:
+  - name: portfolio_amount
+    column: amount_kzt
+    type: sum
+    format: ",.0f"
+    label: Портфель, ₸
+  - name: par30_amount
+    column: par30_amount_kzt
+    type: sum
+    format: ",.0f"
+    label: Портфель с просрочкой больше 30 дней, ₸
+  - name: par90_amount
+    column: par90_amount_kzt
+    type: sum
+    format: ",.0f"
+    label: Портфель с просрочкой больше 90 дней, ₸
+  - name: npl_amount
+    column: npl_amount_kzt
+    type: sum
+    format: ",.0f"
+    label: NPL, ₸
+  - name: restructured_amount
+    column: restructured_amount_kzt
+    type: sum
+    format: ",.0f"
+    label: Реструктуризированные кредиты, ₸
+  - name: provisions
+    column: provision_kzt
+    type: sum
+    format: ",.0f"
+    label: Провизии, ₸
+  - name: loan_count
+    column: loan_id
+    type: count
+    format: ",d"
+    label: Кредитов
+  - name: avg_loan_amount
+    column: amount_kzt
+    type: avg
+    format: ",.0f"
+    label: Средний остаток кредита, ₸
+  - name: avg_days_past_due
+    column: days_past_due
+    type: avg
+    format: ",.1f"
+    label: Средняя просрочка на кредит, дней

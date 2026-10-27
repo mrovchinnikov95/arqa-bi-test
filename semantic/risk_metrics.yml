@@ -1,0 +1,87 @@
+# Готовые метрики риска на дату среза.
+# Источник: reporting.v_risk_metrics — одна строка на дату среза.
+# Доли заданы как avg: на одну дату это ровно значение метрики, поэтому группировать
+# только по report_date; среднее долей за несколько дат смысла не имеет.
+# Суммы тоже только в пределах даты: портфель и провизии — остатки, а не потоки.
+# Изменения — к предыдущему срезу (для 01.10.2026 это 01.09.2026), доли — в п.п.
+# format — строка d3-format, как в Vega-Lite.
+
+model: risk_metrics
+source: reporting.v_risk_metrics
+
+dimensions:
+  - name: report_date
+    column: report_date
+    type: date
+    label: Дата среза
+  - name: prev_report_date
+    column: prev_report_date
+    type: date
+    label: Предыдущий срез
+
+measures:
+  - name: portfolio
+    column: portfolio_kzt
+    type: sum
+    format: ",.0f"
+    label: Портфель, ₸
+  - name: par30
+    column: par30_share
+    type: avg
+    format: ".2%"
+    label: PAR30
+  - name: par90
+    column: par90_share
+    type: avg
+    format: ".2%"
+    label: PAR90
+  - name: npl
+    column: npl_share
+    type: avg
+    format: ".2%"
+    label: NPL
+  - name: provisions
+    column: provisions_kzt
+    type: sum
+    format: ",.0f"
+    label: Провизии, ₸
+  - name: top10_concentration
+    column: top10_share
+    type: avg
+    format: ".2%"
+    label: Доля топ-10 групп
+  - name: loan_count
+    column: loan_count
+    type: sum
+    format: ",d"
+    label: Кредитов в портфеле
+  - name: portfolio_change
+    column: portfolio_chg_kzt
+    type: sum
+    format: "+,.0f"
+    label: Изменение портфеля к прошлому срезу, ₸
+  - name: par30_change_pp
+    column: par30_chg_pp
+    type: avg
+    format: "+.2f"
+    label: Изменение PAR30, п.п.
+  - name: par90_change_pp
+    column: par90_chg_pp
+    type: avg
+    format: "+.2f"
+    label: Изменение PAR90, п.п.
+  - name: npl_change_pp
+    column: npl_chg_pp
+    type: avg
+    format: "+.2f"
+    label: Изменение NPL, п.п.
+  - name: top10_change_pp
+    column: top10_chg_pp
+    type: avg
+    format: "+.2f"
+    label: Изменение доли топ-10 групп, п.п.
+  - name: provisions_change
+    column: provisions_chg_kzt
+    type: sum
+    format: "+,.0f"
+    label: Изменение провизий к прошлому срезу, ₸
