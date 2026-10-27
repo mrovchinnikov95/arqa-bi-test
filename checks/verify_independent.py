@@ -7,8 +7,8 @@
 Логика взята из спецификации задания, а не из SQL: каталог sql/ здесь не читается.
 
 Запуск из корня репозитория:
-    python3 -I checks/verify_independent.py
-    python3 -I checks/verify_independent.py --self-test
+    python3 checks/verify_independent.py
+    python3 checks/verify_independent.py --self-test
 
 Код возврата 1: есть расхождение, нет файла или строки, лишняя строка,
 ошибка исходных данных, а в режиме --self-test — не пойманная порча.

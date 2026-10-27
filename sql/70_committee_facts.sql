@@ -15,11 +15,14 @@ lp AS (SELECT l.* FROM reporting.v_loan_pairs l JOIN d ON l.report_date = d.curr
 pc AS (SELECT p.* FROM reporting.v_portfolio p JOIN d ON p.report_date = d.curr_date),
 
 -- Вывод 1. «Излечения» из 90+ и что было бы без них.
+-- Сценарные ставки берутся из reporting.provision_rate(): «если бы кредит был в 90+» = ставка для 91 дня.
 cure AS (
     SELECT
         count(*)                AS n,
         sum(prev_amount_kzt)    AS prev_kzt,
-        sum(curr_amount_kzt)    AS curr_kzt
+        sum(curr_amount_kzt)    AS curr_kzt,
+        sum(curr_amount_kzt * (reporting.provision_rate(91, false)
+                               - reporting.provision_rate(curr_days_past_due, false))) AS extra_provisions_kzt
     FROM lp WHERE is_cure_from_90plus
 ),
 mig AS (
@@ -33,7 +36,9 @@ mig AS (
 
 -- Вывод 2. Самый крупный кредит, впервые ушедший в PAR30, и его группа.
 new_par30 AS (
-    SELECT lp.loan_id, lp.group_id, lp.sector, lp.curr_days_past_due, lp.curr_amount_kzt
+    SELECT lp.loan_id, lp.group_id, lp.sector, lp.curr_days_past_due, lp.curr_amount_kzt,
+           lp.curr_amount_kzt * (reporting.provision_rate(91, false)
+                                 - reporting.provision_rate(lp.curr_days_past_due, false)) AS roll_extra_provisions_kzt
     FROM lp
     WHERE is_new_par30
     ORDER BY lp.curr_amount_kzt DESC, lp.loan_id
@@ -113,8 +118,8 @@ f AS (
         (106, 1, 'cure_prev_kzt',        'Их остаток на прошлом срезе',              cure.prev_kzt,     reporting.fmt_bn(cure.prev_kzt)),
         (109, 1, 'npl_if_not_cured',     'NPL, если «излечения» не подтвердятся',    (mc.npl_kzt + cure.curr_kzt) / mc.portfolio_kzt,
                                                                                      reporting.fmt_pct((mc.npl_kzt + cure.curr_kzt) / mc.portfolio_kzt)),
-        (110, 1, 'provisions_if_not_cured', 'Доначисление провизий в этом случае (50 % вместо 1 %)', cure.curr_kzt * (0.50 - 0.01),
-                                                                                     reporting.fmt_bn_signed(cure.curr_kzt * (0.50 - 0.01))),
+        (110, 1, 'provisions_if_not_cured', 'Доначисление провизий в этом случае (ставка 90+ вместо текущей)', cure.extra_provisions_kzt,
+                                                                                     reporting.fmt_bn_signed(cure.extra_provisions_kzt)),
         (111, 1, 'to_31_90_n',           'Перешли из 1–30 в 31–90',                  mig.to_31_90_n,    reporting.fmt_num(mig.to_31_90_n, 0)),
         (112, 1, 'to_31_90_kzt',         'Их остаток',                               mig.to_31_90_kzt,  reporting.fmt_bn(mig.to_31_90_kzt)),
         (113, 1, 'to_90_n',              'Перешли из 31–90 в 90+',                   mig.to_90_n,       reporting.fmt_num(mig.to_90_n, 0)),
@@ -132,8 +137,8 @@ f AS (
         (210, 2, 'sector_par30_curr',    'PAR30 отрасли на текущем срезе',           sector.curr_par30, reporting.fmt_pct(sector.curr_par30, 1)),
         (211, 2, 'roll_npl_pp',          'Рост NPL, если кредит уйдёт в 90+',        (SELECT curr_amount_kzt FROM new_par30) / mc.portfolio_kzt * 100,
                                                                                      reporting.fmt_signed((SELECT curr_amount_kzt FROM new_par30) / mc.portfolio_kzt * 100, 1) || ' п.п.'),
-        (212, 2, 'roll_provisions_kzt',  'Доначисление провизий в этом случае (50 % вместо 10 %)', (SELECT curr_amount_kzt FROM new_par30) * (0.50 - 0.10),
-                                                                                     reporting.fmt_bn_signed((SELECT curr_amount_kzt FROM new_par30) * (0.50 - 0.10))),
+        (212, 2, 'roll_provisions_kzt',  'Доначисление провизий в этом случае (ставка 90+ вместо текущей)', (SELECT roll_extra_provisions_kzt FROM new_par30),
+                                                                                     reporting.fmt_bn_signed((SELECT roll_extra_provisions_kzt FROM new_par30))),
         (213, 2, 'top10_par30_prev',     'PAR30 топ-10 групп на прошлом срезе',      top10.prev_par30,  reporting.fmt_pct(top10.prev_par30, 1)),
         (214, 2, 'top10_par30_curr',     'PAR30 топ-10 групп на текущем срезе',      top10.curr_par30,  reporting.fmt_pct(top10.curr_par30, 1)),
         (215, 2, 'par30_prev',           'PAR30 портфеля на прошлом срезе',          mp.par30_share,    reporting.fmt_pct(mp.par30_share, 1)),
