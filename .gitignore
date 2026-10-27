@@ -1,0 +1,7 @@
+# локальный одноразовый кластер PostgreSQL и его лог
+.pgdata/
+# временные файлы проверок
+.tmp/
+__pycache__/
+.DS_Store
+node_modules
